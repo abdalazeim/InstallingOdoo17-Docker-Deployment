@@ -1,0 +1,68 @@
+# Odoo 17 Private Repository - Traefik Mode
+#
+# وضع ترافيك: أودو لا يُنشر على منافذ المضيف مباشرة؛
+# ينضم إلى شبكة "proxy" المشتركة ويُوجّه عبر ترافيك على HTTPS.
+# تبقى قاعدة بيانات PostgreSQL على الشبكة الداخلية فقط.
+
+version: '3.8'
+
+services:
+  db:
+    container_name: odoo17-db
+    image: ${PG_IMAGE:-postgres:16}
+    user: root
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-odoo}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo17}
+      - POSTGRES_DB=postgres
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  odoo17:
+    container_name: odoo17
+    image: ${ODOO_IMAGE:-odoo:17}
+    user: root
+    depends_on:
+      - db
+    restart: always
+    tty: true
+    command: ["--config=/etc/odoo/odoo.conf"]
+    environment:
+      - HOST=db
+      - PORT=5432
+      - USER=${POSTGRES_USER:-odoo}
+      - PASSWORD=${POSTGRES_PASSWORD:-odoo17}
+      - PIP_BREAK_SYSTEM_PACKAGES=1
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./addons:/mnt/extra-addons
+      - ./etc:/etc/odoo
+    networks:
+      - internal
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=${DOCKER_PROXY_NETWORK:-proxy}"
+      - "traefik.http.routers.odoo17.rule=Host(`${ODOO_DOMAIN:?ODOO_DOMAIN is required}`)"
+      - "traefik.http.routers.odoo17.entrypoints=websecure"
+      - "traefik.http.routers.odoo17.tls=true"
+      - "traefik.http.routers.odoo17.tls.certresolver=${CERTSRESOLVER:-letsencrypt}"
+      - "traefik.http.services.odoo17.loadbalancer.server.port=8069"
+
+      - "traefik.http.routers.odoo17-websocket.rule=Host(`${ODOO_DOMAIN}`) && PathPrefix(`/websocket`)"
+      - "traefik.http.routers.odoo17-websocket.entrypoints=websecure"
+      - "traefik.http.routers.odoo17-websocket.tls=true"
+      - "traefik.http.routers.odoo17-websocket.tls.certresolver=${CERTSRESOLVER:-letsencrypt}"
+      - "traefik.http.routers.odoo17-websocket.priority=100"
+      - "traefik.http.services.odoo17-websocket.loadbalancer.server.port=8072"
+
+networks:
+  internal:
+    name: ${ODOO_NETWORK:-odoo17_internal}
+    driver: bridge
+  proxy:
+    external: true
+    name: ${DOCKER_PROXY_NETWORK:-proxy}

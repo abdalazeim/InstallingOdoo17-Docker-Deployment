@@ -1,0 +1,59 @@
+# Odoo 17 Private Repository - Infrastructure Manager Edition
+#
+# مستودع خاص لـ Odoo 17 يعتمد على الأفكار من Odoo-MultiVersion-Deployment
+# ولكن محسن ليتناسب مع نظام مدير البنية التحتية (Infrastructure Manager).
+#
+# الميزات:
+# - دعم متغيرات البيئة (لا كلمات مرور مكتوبة ضمنيًا)
+# - دعم ترافيك كبروكسي عكسي (HTTPS)
+# - وضع ستاندون (وصول مباشر)
+# - شبكة داخلية معزولة لكل ideal
+# - EntryPoint آمن مع انتظار PostgreSQL
+# - ملف .gitignore آمن يستبعد الأسرار والبيانات
+
+version: '3.8'
+
+services:
+  db:
+    container_name: odoo17-db
+    image: ${PG_IMAGE:-postgres:16}
+    user: root
+    restart: always
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-odoo}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo17}
+      - POSTGRES_DB=postgres
+    volumes:
+      - ./postgresql:/var/lib/postgresql/data
+    networks:
+      - internal
+
+  odoo17:
+    container_name: odoo17
+    image: ${ODOO_IMAGE:-odoo:17}
+    user: root
+    depends_on:
+      - db
+    restart: always
+    tty: true
+    command: ["--config=/etc/odoo/odoo.conf"]
+    environment:
+      - HOST=db
+      - PORT=5432
+      - USER=${POSTGRES_USER:-odoo}
+      - PASSWORD=${POSTGRES_PASSWORD:-odoo17}
+      - PIP_BREAK_SYSTEM_PACKAGES=1
+    ports:
+      - "${ODOO_HTTP_PORT:-10017}:8069"
+      - "${ODOO_CHAT_PORT:-20017}:8072"
+    volumes:
+      - ./entrypoint.sh:/entrypoint.sh:ro
+      - ./addons:/mnt/extra-addons
+      - ./etc:/etc/odoo
+    networks:
+      - internal
+
+networks:
+  internal:
+    name: ${ODOO_NETWORK:-odoo17_internal}
+    driver: bridge
