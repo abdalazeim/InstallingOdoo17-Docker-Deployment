@@ -1,18 +1,15 @@
-# Odoo 17 Multi-Instance Deployment - .gitignore
-# يستثني مجلدات البيانات والأسرار والسجلات من التحكم بالإصدار.
+# Odoo Docker deployment: ignore local secrets, data, and logs.
 
-# أسرار ومتغيرات بيئة
+# Secrets and environment files
 .env
 *.env
-group_vars/vault.yml
-.vault_pass
 
-# مجلدات البيانات
+# Persistent data
 postgresql/
 data/
 filestore/
 
-# سجلات
+# Logs
 *.log
 etc/odoo-server.log
 etc/sessions/
@@ -25,12 +22,7 @@ __pycache__/
 .idea/
 node_modules/
 
-# مجلدات النشر
-/opt/odoo17/
-/data/odoo17/
-/data/backups/
-
-# ملفات مؤقتة
+# Temporary files
 *.tmp
 *.bak
 *~
