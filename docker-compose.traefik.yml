@@ -8,21 +8,21 @@ version: '3.8'
 
 services:
   db:
-    container_name: odoo17-db
+    container_name: ${ODOO_DB_CONTAINER_NAME:-odoo17-db}
     image: ${PG_IMAGE:-postgres:16}
     user: root
     restart: always
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-odoo}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo17}
-      - POSTGRES_DB=postgres
+      - POSTGRES_USER=${POSTGRES_USER:-odoo17}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-odoo@17}
+      - POSTGRES_DB=${POSTGRES_DB:-postgre}
     volumes:
       - ./postgresql:/var/lib/postgresql/data
     networks:
       - internal
 
   odoo17:
-    container_name: odoo17
+    container_name: ${ODOO_CONTAINER_NAME:-odoo17}
     image: ${ODOO_IMAGE:-odoo:17}
     user: root
     depends_on:
@@ -33,14 +33,15 @@ services:
     environment:
       - HOST=db
       - PORT=5432
-      - USER=${POSTGRES_USER:-odoo}
+      - USER=${POSTGRES_USER:-odoo17}
       - PASSWORD=${POSTGRES_PASSWORD:-odoo17}
-      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-odoo17}
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-Admin@17}
       - PIP_BREAK_SYSTEM_PACKAGES=1
     volumes:
       - ./entrypoint.sh:/entrypoint.sh:ro
       - ./addons:/mnt/extra-addons
       - ./etc:/etc/odoo
+      - odoo_data:/var/lib/odoo
     networks:
       - internal
       - proxy
@@ -67,3 +68,6 @@ networks:
   proxy:
     external: true
     name: ${DOCKER_PROXY_NETWORK:-proxy}
+
+volumes:
+  odoo_data:
