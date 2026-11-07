@@ -5,20 +5,46 @@
 # يستمد الأفكار من Odoo-MultiVersion-Deployment مع تحسينات للأمان والتوافق.
 # ==============================================================================
 set -eu
+umask 077
 
 : "${HOST:=db}"
 : "${PORT:=5432}"
 : "${USER:=odoo}"
 : "${PASSWORD:=}"
+: "${ODOO_ADMIN_PASSWORD:=odoo17}"
 
 # تثبيت متطلبات بايثون الإضافية إذا أضافها المشغل.
 if [ -f /etc/odoo/requirements.txt ]; then
-    pip3 install --no-cache-dir -r /etc/odoo/requirements.txt || true
+    pip3 install --no-cache-dir -r /etc/odoo/requirements.txt
 fi
+
+# Render the environment-backed settings without modifying the mounted config.
+python3 - <<'PY'
+import os
+from pathlib import Path
+
+source = Path("/etc/odoo/odoo.conf").read_text(encoding="utf-8")
+values = {
+    "${ODOO_ADMIN_PASSWORD}": os.environ["ODOO_ADMIN_PASSWORD"],
+    "${ODOO_DB_USER}": os.environ["USER"],
+    "${ODOO_DB_PASSWORD}": os.environ["PASSWORD"],
+}
+for placeholder, value in values.items():
+    if "\n" in value or "\r" in value:
+        raise SystemExit(f"Invalid newline in value for {placeholder}")
+    source = source.replace(placeholder, value)
+
+if any(placeholder in source for placeholder in values):
+    raise SystemExit("Unresolved environment variable in /etc/odoo/odoo.conf")
+
+config = Path("/tmp/odoo.conf")
+config.write_text(source, encoding="utf-8")
+config.chmod(0o600)
+PY
 
 # الانتظار حتى تقبل PostgreSQL الاتصالات قبل تشغيل أودو.
 if [ -n "${PASSWORD}" ]; then
-    python3 - <<'PY' || true
+    python3 - <<'PY'
 import os
 import socket
 import time
@@ -31,6 +57,8 @@ for _ in range(60):
             break
     except OSError:
         time.sleep(1)
+else:
+    raise SystemExit(f"Timed out waiting for PostgreSQL at {host}:{port}")
 PY
 fi
 

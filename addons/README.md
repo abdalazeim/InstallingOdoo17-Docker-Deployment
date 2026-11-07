@@ -20,4 +20,4 @@ This folder is intentionally left blank. Place your custom Odoo addons here.
 
 ---
 
-*تم إعداد هذا الملف كجزء من نظام إدارة البنية التحتية لـ Odoo (Infrastructure Manager).*
+ضع الإضافات المخصصة هنا لتُحمّل داخل حاوية Odoo.

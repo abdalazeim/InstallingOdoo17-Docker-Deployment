@@ -36,12 +36,13 @@ services:
       - db
     restart: always
     tty: true
-    command: ["--config=/etc/odoo/odoo.conf"]
+    command: ["--config=/tmp/odoo.conf"]
     environment:
       - HOST=db
       - PORT=5432
       - USER=${POSTGRES_USER:-odoo}
       - PASSWORD=${POSTGRES_PASSWORD:-odoo17}
+      - ODOO_ADMIN_PASSWORD=${ODOO_ADMIN_PASSWORD:-odoo17}
       - PIP_BREAK_SYSTEM_PACKAGES=1
     ports:
       - "${ODOO_HTTP_PORT:-10017}:8069"
